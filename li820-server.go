@@ -15,7 +15,7 @@ import (
 type LICOR struct {
 	port  io.ReadWriteCloser
 	model string
-  site  string
+	site  string
 }
 
 func (licor LICOR) Sample() string {
@@ -36,7 +36,7 @@ func (licor LICOR) parse(data string) string {
 		CO2       float32   `xml:"co2" json:"co2"`
 		H2O       float32   `xml:"h2o" json:"h2o"`
 		TimeStamp time.Time `json:"at"`
-    Site      string    `json:"site"`
+		Site      string    `json:"site"`
 	}
 	type result struct {
 		XMLName xml.Name `xml:licor.model`
@@ -47,11 +47,13 @@ func (licor LICOR) parse(data string) string {
 
 	err := xml.Unmarshal([]byte(data), &value)
 	if err != nil {
-		log.Fatal("error: %v", err)
+		log.Println("error: %v", err)
+		value.Datum.CO2 = -1
+		value.Datum.H2O = -1
 	}
 
 	value.Datum.TimeStamp = time.Now()
-  value.Datum.Site = licor.site
+	value.Datum.Site = licor.site
 	jsonString, err := json.Marshal(value.Datum)
 	return string(jsonString)
 }
@@ -63,7 +65,7 @@ func (licor LICOR) read(sep string) string {
 		buffer := make([]byte, 1024)
 		n, err := licor.port.Read(buffer)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		result.Write(buffer[:n])
 	}
@@ -86,8 +88,8 @@ func (licor LICOR) waiting() string {
 
 func main() {
 	licor := LICOR{}
-	licor.model = "li840"
-  licor.site  = "glbrc"
+	licor.model = "li820"
+	licor.site = "glbrc"
 
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
@@ -99,7 +101,7 @@ func main() {
 
 	for {
 		sample := licor.Sample()
-    /* log.Print(sample) */
+		// log.Print(sample)
 		socket.Send(sample, 0)
 	}
 }
