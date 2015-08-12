@@ -5,11 +5,20 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	zmq "github.com/pebbe/zmq4"
+	"github.com/prometheus/client_golang/prometheus"
 	serial "github.com/tarm/goserial"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 	"time"
+)
+
+var (
+	co2Log = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "trailer_co2_ppm",
+		Help: "Current CO2 value measured on the licor.",
+	})
 )
 
 type LICOR struct {
@@ -86,7 +95,10 @@ func (licor LICOR) waiting() string {
 	return data[lastIndex:]
 }
 
-func main() {
+func init() {
+	prometheus.MustRegister(co2Log)
+}
+func readLicor() {
 	licor := LICOR{}
 	licor.model = "li820"
 	licor.site = "glbrc"
@@ -103,5 +115,13 @@ func main() {
 		sample := licor.Sample()
 		// log.Print(sample)
 		socket.Send(sample, 0)
+		co2Log.set(sample.CO2)
 	}
+}
+func main() {
+	go readLicor()
+
+	http.Handle("/metrics", prometheus.Handler())
+	http.ListenAndServe(":9002", nil)
+
 }
