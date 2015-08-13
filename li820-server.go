@@ -28,7 +28,7 @@ type LICOR struct {
 }
 
 func (licor LICOR) Sample() string {
-	c := serial.Config{Name: "/dev/ttyS4", Baud: 9600}
+	c := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
 	port, err := serial.OpenPort(&c)
 	licor.port = port
 	if err != nil {
@@ -64,6 +64,7 @@ func (licor LICOR) parse(data string) string {
 	value.Datum.TimeStamp = time.Now()
 	value.Datum.Site = licor.site
 	jsonString, err := json.Marshal(value.Datum)
+        co2Log.Set(float64(value.Datum.CO2))
 	return string(jsonString)
 }
 
@@ -113,15 +114,13 @@ func readLicor() {
 
 	for {
 		sample := licor.Sample()
-		// log.Print(sample)
+		log.Print(sample)
 		socket.Send(sample, 0)
-		co2Log.set(sample.CO2)
 	}
 }
 func main() {
 	go readLicor()
 
 	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(":9002", nil)
-
+	http.ListenAndServe(":9092", nil)
 }
