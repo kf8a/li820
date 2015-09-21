@@ -103,14 +103,19 @@ func (licor LICOR) waiting() string {
 	return data[lastIndex:]
 }
 
+func newLicor(model string, site string) LICOR {
+	licor := LICOR{}
+	licor.model = "li820"
+	licor.site = "glbrc"
+	return licor
+}
+
 func init() {
 	prometheus.MustRegister(co2Log)
 }
 
 func readLicor() {
-	licor := LICOR{}
-	licor.model = "li820"
-	licor.site = "glbrc"
+	licor := newLicor("li820", "glbrc")
 
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
@@ -129,6 +134,7 @@ func readLicor() {
 		socket.Send(sample, 0)
 	}
 }
+
 func main() {
 	go readLicor()
 
