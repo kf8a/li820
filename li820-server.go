@@ -36,7 +36,7 @@ type Datum struct {
 }
 
 //TestSample provides fake test data
-func (licor LICOR) TestSamlper(c chan Datum) {
+func (licor LICOR) TestSampler(c chan Datum) {
 	for {
 		datum := Datum{
 			TimeStamp: time.Now(),
