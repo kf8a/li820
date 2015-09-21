@@ -27,6 +27,13 @@ type LICOR struct {
 	site  string
 }
 
+func (licor LICOR) Sampler(c chan string) {
+	for {
+		sample := licor.Sample()
+		c <- sample
+	}
+}
+
 func (licor LICOR) Sample() string {
 	c := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
 	port, err := serial.OpenPort(&c)
@@ -64,7 +71,7 @@ func (licor LICOR) parse(data string) string {
 	value.Datum.TimeStamp = time.Now()
 	value.Datum.Site = licor.site
 	jsonString, err := json.Marshal(value.Datum)
-        co2Log.Set(float64(value.Datum.CO2))
+	co2Log.Set(float64(value.Datum.CO2))
 	return string(jsonString)
 }
 
@@ -99,6 +106,7 @@ func (licor LICOR) waiting() string {
 func init() {
 	prometheus.MustRegister(co2Log)
 }
+
 func readLicor() {
 	licor := LICOR{}
 	licor.model = "li820"
@@ -112,8 +120,11 @@ func readLicor() {
 	socket.Bind("tcp://*:5556")
 	socket.Bind("ipc://weather.ipc")
 
+	c := make(chan string, 10)
+	go licor.Sampler(c)
+
 	for {
-		sample := licor.Sample()
+		sample := <-c
 		log.Print(sample)
 		socket.Send(sample, 0)
 	}
