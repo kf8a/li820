@@ -9,6 +9,7 @@ import (
 	serial "github.com/tarm/goserial"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -26,8 +27,15 @@ type LICOR struct {
 	site  string
 }
 
+type Datum struct {
+	CO2       float32   `xml:"co2" json:"co2"`
+	H2O       float32   `xml:"h2o" json:"h2o"`
+	TimeStamp time.Time `json:"at"`
+	Site      string    `json:"site"`
+}
+
 //Sampler provides a function to sample the Licor and return the results in a channel
-func (licor LICOR) Sampler(c chan string) {
+func (licor LICOR) Sampler(c chan Datum) {
 	connection := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
 	port, err := serial.OpenPort(&connection)
 	defer port.Close()
@@ -42,23 +50,17 @@ func (licor LICOR) Sampler(c chan string) {
 	}
 }
 
-func (licor LICOR) Sample() string {
+func (licor LICOR) Sample() Datum {
 	data := licor.waiting()
 	data = strings.Join([]string{data, licor.data()}, "")
-	data = licor.parse(data)
-	return data
+	datum := licor.parse(data)
+	return datum
 }
 
-func (licor LICOR) parse(data string) string {
-	type datum struct {
-		CO2       float32   `xml:"co2" json:"co2"`
-		H2O       float32   `xml:"h2o" json:"h2o"`
-		TimeStamp time.Time `json:"at"`
-		Site      string    `json:"site"`
-	}
+func (licor LICOR) parse(data string) Datum {
 	type result struct {
 		XMLName xml.Name `xml:licor.model`
-		Datum   datum    `xml:"data"`
+		Datum   Datum    `xml:"data"`
 	}
 
 	value := new(result)
@@ -72,9 +74,7 @@ func (licor LICOR) parse(data string) string {
 
 	value.Datum.TimeStamp = time.Now()
 	value.Datum.Site = licor.site
-	jsonString, err := json.Marshal(value.Datum)
-	co2Log.Set(float64(value.Datum.CO2))
-	return string(jsonString)
+	return value.Datum
 }
 
 func (licor LICOR) read(sep string) string {
@@ -127,12 +127,24 @@ func readLicor() {
 	socket.Bind("tcp://*:5556")
 	socket.Bind("ipc://weather.ipc")
 
-	c := make(chan string, 10)
+	c := make(chan Datum)
 	go licor.Sampler(c)
-
 	for {
 		sample := <-c
-		log.Print(sample)
-		socket.Send(sample, 0)
+		co2Log.Set(float64(sample.CO2))
+		jsonString, err := json.Marshal(sample)
+		if err != nil {
+			log.Print(err)
+		}
+		s := string(jsonString)
+		log.Print(s)
+		socket.Send(s, 0)
 	}
+}
+
+func main() {
+	go readLicor()
+
+	http.Handle("/metrics", prometheus.Handler())
+	http.ListenAndServe(":9092", nil)
 }
