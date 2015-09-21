@@ -27,7 +27,16 @@ type LICOR struct {
 	site  string
 }
 
+//Sampler provides a function to sample the Licor and return the results in a channel
 func (licor LICOR) Sampler(c chan string) {
+	connection := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
+	port, err := serial.OpenPort(&connection)
+	defer port.Close()
+	licor.port = port
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for {
 		sample := licor.Sample()
 		c <- sample
@@ -35,12 +44,6 @@ func (licor LICOR) Sampler(c chan string) {
 }
 
 func (licor LICOR) Sample() string {
-	c := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
-	port, err := serial.OpenPort(&c)
-	licor.port = port
-	if err != nil {
-		log.Fatal(err)
-	}
 	data := licor.waiting()
 	data = strings.Join([]string{data, licor.data()}, "")
 	data = licor.parse(data)
