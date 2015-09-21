@@ -9,6 +9,7 @@ import (
 	serial "github.com/tarm/goserial"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -28,10 +29,24 @@ type LICOR struct {
 }
 
 type Datum struct {
-	CO2       float32   `xml:"co2" json:"co2"`
-	H2O       float32   `xml:"h2o" json:"h2o"`
+	CO2       float64   `xml:"co2" json:"co2"`
+	H2O       float64   `xml:"h2o" json:"h2o"`
 	TimeStamp time.Time `json:"at"`
 	Site      string    `json:"site"`
+}
+
+//TestSample provides fake test data
+func (licor LICOR) TestSamlper(c chan Datum) {
+	for {
+		datum := Datum{
+			TimeStamp: time.Now(),
+			Site:      "glbrc",
+			CO2:       rand.Float64(),
+			H2O:       rand.Float64(),
+		}
+		c <- datum
+		time.Sleep(60 * 1000)
+	}
 }
 
 //Sampler provides a function to sample the Licor and return the results in a channel
