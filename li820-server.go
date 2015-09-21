@@ -1,4 +1,4 @@
-package main
+package li820
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	serial "github.com/tarm/goserial"
 	"io"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -106,7 +105,7 @@ func (licor LICOR) waiting() string {
 	return data[lastIndex:]
 }
 
-func newLicor(model string, site string) LICOR {
+func NewLicor(model string, site string) LICOR {
 	licor := LICOR{}
 	licor.model = "li820"
 	licor.site = "glbrc"
@@ -118,7 +117,7 @@ func init() {
 }
 
 func readLicor() {
-	licor := newLicor("li820", "glbrc")
+	licor := NewLicor("li820", "glbrc")
 
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
@@ -136,11 +135,4 @@ func readLicor() {
 		log.Print(sample)
 		socket.Send(sample, 0)
 	}
-}
-
-func main() {
-	go readLicor()
-
-	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(":9092", nil)
 }
