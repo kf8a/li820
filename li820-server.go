@@ -45,13 +45,13 @@ func (licor LICOR) TestSampler(c chan Datum) {
 			H2O:       rand.Float64(),
 		}
 		c <- datum
-		time.Sleep(60 * 1000)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 //Sampler provides a function to sample the Licor and return the results in a channel
-func (licor LICOR) Sampler(c chan Datum) {
-	connection := serial.Config{Name: "/dev/ttyS1", Baud: 9600}
+func (licor LICOR) Sampler(c chan Datum, portname string) {
+	connection := serial.Config{Name: portname, Baud: 9600}
 	port, err := serial.OpenPort(&connection)
 	defer port.Close()
 	licor.port = port
@@ -143,7 +143,7 @@ func readLicor() {
 	socket.Bind("ipc://weather.ipc")
 
 	c := make(chan Datum)
-	go licor.Sampler(c)
+	go licor.Sampler(c, "/dev/ttyS1")
 	for {
 		sample := <-c
 		co2Log.Set(float64(sample.CO2))
