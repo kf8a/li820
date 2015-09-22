@@ -2,15 +2,12 @@ package li820
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
-	zmq "github.com/pebbe/zmq4"
 	"github.com/prometheus/client_golang/prometheus"
 	serial "github.com/tarm/goserial"
 	"io"
 	"log"
 	"math/rand"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -90,6 +87,9 @@ func (licor LICOR) parse(data string) Datum {
 
 	value.Datum.TimeStamp = time.Now()
 	value.Datum.Site = licor.site
+
+	co2Log.Set(float64(value.Datum.CO2))
+
 	return value.Datum
 }
 
@@ -131,37 +131,4 @@ func NewLicor(model string, site string, portname string) LICOR {
 
 func init() {
 	prometheus.MustRegister(co2Log)
-}
-
-func readLicor() {
-	licor := NewLicor("li820", "glbrc", "/dev/ttyS1")
-
-	socket, err := zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer socket.Close()
-	socket.Bind("tcp://*:5556")
-	socket.Bind("ipc://weather.ipc")
-
-	c := make(chan Datum)
-	go licor.Sampler(c)
-	for {
-		sample := <-c
-		co2Log.Set(float64(sample.CO2))
-		jsonString, err := json.Marshal(sample)
-		if err != nil {
-			log.Print(err)
-		}
-		s := string(jsonString)
-		log.Print(s)
-		socket.Send(s, 0)
-	}
-}
-
-func main() {
-	go readLicor()
-
-	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(":9092", nil)
 }
