@@ -23,9 +23,10 @@ var (
 )
 
 type LICOR struct {
-	port  io.ReadWriteCloser
-	model string
-	site  string
+	port     io.ReadWriteCloser
+	portname string
+	model    string
+	site     string
 }
 
 type Datum struct {
@@ -50,8 +51,8 @@ func (licor LICOR) TestSampler(c chan Datum) {
 }
 
 //Sampler provides a function to sample the Licor and return the results in a channel
-func (licor LICOR) Sampler(c chan Datum, portname string) {
-	connection := serial.Config{Name: portname, Baud: 9600}
+func (licor LICOR) Sampler(c chan Datum) {
+	connection := serial.Config{Name: licor.portname, Baud: 9600}
 	port, err := serial.OpenPort(&connection)
 	defer port.Close()
 	licor.port = port
@@ -120,10 +121,11 @@ func (licor LICOR) waiting() string {
 	return data[lastIndex:]
 }
 
-func NewLicor(model string, site string) LICOR {
+func NewLicor(model string, site string, portname string) LICOR {
 	licor := LICOR{}
-	licor.model = "li820"
-	licor.site = "glbrc"
+	licor.model = model
+	licor.site = site
+	licor.portname = portname
 	return licor
 }
 
@@ -132,7 +134,7 @@ func init() {
 }
 
 func readLicor() {
-	licor := NewLicor("li820", "glbrc")
+	licor := NewLicor("li820", "glbrc", "/dev/ttyS1")
 
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
@@ -143,7 +145,7 @@ func readLicor() {
 	socket.Bind("ipc://weather.ipc")
 
 	c := make(chan Datum)
-	go licor.Sampler(c, "/dev/ttyS1")
+	go licor.Sampler(c)
 	for {
 		sample := <-c
 		co2Log.Set(float64(sample.CO2))
