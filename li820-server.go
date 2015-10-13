@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"github.com/prometheus/client_golang/prometheus"
-	serial "github.com/tarm/goserial"
+	serial "github.com/tarm/serial"
 	"io"
 	"log"
 	"math/rand"
